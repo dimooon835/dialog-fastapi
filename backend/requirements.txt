@@ -7,4 +7,3 @@ pwdlib[argon2]>=0.2,<1
 python-dotenv>1.1,<2
 email-validator>=2.2,<3
 
-# git clone https://github.com/alyakinegor/blog.git
