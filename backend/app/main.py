@@ -7,7 +7,7 @@ from app import auth
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    init_db,
+    init_db()
     yield
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
