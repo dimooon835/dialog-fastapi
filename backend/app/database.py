@@ -102,7 +102,7 @@ def enable_sqlite_foreign_keys(connection, _) -> None:
         cursor.execute("PRAGMA foreign_keys = ON")
         cursor.close()
 
-SessionLocal = sessionmaker(bing=engine, autoflush=False)
+SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
 def get_db():
     with SessionLocal() as session:

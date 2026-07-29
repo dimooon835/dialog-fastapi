@@ -8,7 +8,7 @@ from app.polza import polza
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    init_db,
+    init_db()
     yield
     await polza.close()
 

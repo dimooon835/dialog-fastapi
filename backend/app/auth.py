@@ -1,23 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pwdlib import PasswordHash
 from typing import Annotated
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-<<<<<<< Updated upstream
-from datetime import datetime
-=======
-from datetime import datetime, timedelta, UTC
->>>>>>> Stashed changes
+from datetime import datetime, timedelta
 from app.database import get_db, User
+from app.config import settings
+import jwt
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 password_hash = PasswordHash.recommended()
 DbSession = Annotated[Session, Depends(get_db)]
 
-<<<<<<< Updated upstream
-=======
 bearer = HTTPBearer(auto_error=False)
 JWT_ISSUER = "dialog-api"
 JWT_AUDIENCE = "dialog-web"
@@ -82,8 +80,6 @@ def get_current_user(
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
     
->>>>>>> Stashed changes
-
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -107,13 +103,8 @@ class RegisterRequest(BaseModel):
         return value
 
 
-<<<<<<< Updated upstream
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: DbSession):
-=======
-class AuthResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
     user: UserResponse
 
 
@@ -124,7 +115,6 @@ class LoginRequest(BaseModel):
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, response: Response, db: DbSession):
->>>>>>> Stashed changes
     user = User(name=payload.name, email=str(payload.email).lower(), password_hash=password_hash.hash(payload.password))
 
     db.add(user)
@@ -137,4 +127,34 @@ def register(payload: RegisterRequest, response: Response, db: DbSession):
             status_code=status.HTTP_409_CONFLICT,
             detail="Пользователь с таким email уже существует") from exc
 
+    token = create_token(user.id)
+    set_auth_cookie(response, token)
+
+    return AuthResponse(access_token=token, user=user)
+
+
+@router.post("/login", response_model=AuthResponse)
+def login(payload: LoginRequest, response: Response, db: DbSession) -> AuthResponse:
+    email = str(payload.email).lower()
+    user = db.scalar(select(User).where(User.email == email))
+
+    if not user or not password_hash.verify(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Требуется вход"
+        )
+
+    token = create_token(user.id)
+    set_auth_cookie(response, token)
+
+    return AuthResponse(access_token=token, user=user)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response):
+    response.delete_cookie("dialog_access_token", path="/")
+
+
+@router.get("/me", response_model=UserResponse)
+def me(user: CurrentUser) -> User:
     return user
