@@ -21,7 +21,7 @@ JWT_ISSUER = "dialog-api"
 JWT_AUDIENCE = "dialog-web"
 
 def create_token(user_id: int) -> str:
-    now = datetime.now()
+    now = datetime.now(UTC)
     return jwt.encode(
         {
             "sub": str(user_id),
@@ -62,11 +62,11 @@ def set_auth_cookie(response: Response, token: str) -> None:
 def get_current_user(
     request: Request,
     db: DbSession,
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer)]):
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]):
     token = (
         credentials.credentials
         if credentials
-        else request.cookie.get("dialog_access_token"))
+        else request.cookies.get("dialog_access_token"))
 
     user_id = read_token(token) if token else None
     user = db.get(User, user_id) if user_id else None
@@ -80,7 +80,6 @@ def get_current_user(
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
     
-
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -104,9 +103,8 @@ class RegisterRequest(BaseModel):
         return value
 
 
-class AuthResponse(BaseModel):
-    access_token: str
-    token_type: str = "Bearer"
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(payload: RegisterRequest, db: DbSession):
     user: UserResponse
 
 
