@@ -1,16 +1,32 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter, 
+    Depends, 
+    HTTPException,
+    Request,
+    Response,
+    status
+)
+
 from pwdlib import PasswordHash
 from typing import Annotated
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import (
+    BaseModel, 
+    ConfigDict, 
+    EmailStr, 
+    Field, 
+    field_validator
+)
+
 from datetime import datetime, timedelta
-from app.database import get_db, User
-from app.config import settings
+
 import jwt
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.database import get_db, User
+from app.config import settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 password_hash = PasswordHash.recommended()
@@ -21,7 +37,7 @@ JWT_ISSUER = "dialog-api"
 JWT_AUDIENCE = "dialog-web"
 
 def create_token(user_id: int) -> str:
-    now = datetime.now(UTC)
+    now = datetime.now()
     return jwt.encode(
         {
             "sub": str(user_id),
@@ -39,17 +55,16 @@ def read_token(token: str) -> int | None:
         payload = jwt.decode(
             token,
             settings.jwt_secret_key,
-            algorithms=["HS256"],
-            issuer=JWT_ISSUER,
+            algorithm=["HS256"],
+            issuer = JWT_ISSUER,
             audience=JWT_AUDIENCE
         )
     except jwt.PyJWTError:
         return None
-
     user_id = payload.get("sub")
     return int(user_id) if isinstance(user_id, str) and user_id.isdigit() else None
 
-def set_auth_cookie(response: Response, token: str) -> None:
+def set_auth_cookie(response: Response, token: str) -> None: 
     response.set_cookie(
         "dialog_access_token",
         token,
@@ -57,29 +72,24 @@ def set_auth_cookie(response: Response, token: str) -> None:
         httponly=True,
         secure=settings.cookie_secure,
         samesite="lax",
-        path="/")
+        path="/"
+    )
 
-def get_current_user(
-    request: Request,
-    db: DbSession,
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]):
-    token = (
-        credentials.credentials
-        if credentials
-        else request.cookies.get("dialog_access_token"))
+def get_current_user(request: Request, db: DbSession, credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer)]):
+    token = (credentials.credentials if credentials else request.cookies.get("dialog_access_token"))
 
     user_id = read_token(token) if token else None
     user = db.get(User, user_id) if user_id else None
-
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Требуется вход")
-
+            default="Требуется вход"
+        )
     return user
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
-    
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -87,7 +97,6 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     created_at: datetime
-
 
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
@@ -99,14 +108,14 @@ class RegisterRequest(BaseModel):
     def normalize_name(cls, value: str) -> str:
         value = " ".join(value.split())
         if len(value) < 2:
-            raise ValueError("Имя должно содержать не менее 2 символов")
+            raise ValueError ("Имя должно содержать не менее 2 символов")
         return value
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: DbSession):
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
     user: UserResponse
-
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -115,8 +124,10 @@ class LoginRequest(BaseModel):
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, response: Response, db: DbSession):
-    user = User(name=payload.name, email=str(payload.email).lower(), password_hash=password_hash.hash(payload.password))
-
+    user = User(
+        name=payload.name, 
+        email=str(payload.email).lower(), 
+        password_hash=password_hash.hash(payload.password))
     db.add(user)
 
     try:
@@ -125,23 +136,23 @@ def register(payload: RegisterRequest, response: Response, db: DbSession):
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Пользователь с таким email уже существует") from exc
+            detail="Пользователь с таким email уже существует"
+        ) from exc
 
-    token = create_token(user.id)
+    token= create_token(user.id)
     set_auth_cookie(response, token)
-
     return AuthResponse(access_token=token, user=user)
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(payload: LoginRequest, response: Response, db: DbSession) -> AuthResponse:
+def login(payload:LoginRequest, response: Response, db: DbSession) -> AuthResponse:
     email = str(payload.email).lower()
     user = db.scalar(select(User).where(User.email == email))
 
     if not user or not password_hash.verify(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Требуется вход"
+            detail='Требуется вход'
         )
 
     token = create_token(user.id)
@@ -153,7 +164,6 @@ def login(payload: LoginRequest, response: Response, db: DbSession) -> AuthRespo
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response):
     response.delete_cookie("dialog_access_token", path="/")
-
 
 @router.get("/me", response_model=UserResponse)
 def me(user: CurrentUser) -> User:

@@ -1,4 +1,4 @@
-from sqlalchemy import (
+from sqlalchemy import(
     CheckConstraint,
     DateTime,
     String,
@@ -19,11 +19,10 @@ from sqlalchemy.orm import (
 )
 
 from datetime import datetime, UTC
-from pathlib import Path
 from app.config import settings
+from pathlib import Path
 
 import sqlite3
-
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
@@ -36,62 +35,52 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80))
-    email: Mapped[str] = mapped_column(
-        String(255, collation="NOCASE"),
-        unique=True)
-
-    password_hash: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.now())
-
+    email: Mapped[str] = mapped_column(String(255, collation="NOCASE"), unique=True)
+    password_hash: Mapped[str]= mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now())
     chats: Mapped[list["Chat"]] = relationship(
         back_populates="user",
-        cascade="all, delete-orphan")
+        cascade="all, delete-orphan"
+    )
 
 class Chat(Base):
     __tablename__ = "chats"
-    __table_args__ = (Index("idx_chats_user_updated", "user_id", "updated_at"),)
+
+    __table_args__ = (
+        Index("idx_chats_user_updated", "user_id", "updated_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"))
-
-    title: Mapped[int] = mapped_column(String(120), default="Новый чат")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utc_now)
-
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utc_now, onupdate=utc_now)
-
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(120), default="Новый чат")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     user: Mapped["User"] = relationship(back_populates="chats")
     messages: Mapped[list["Message"]] = relationship(
-        back_populates="chat",
-        cascade="all, delete-orphan",
+        back_populates="chat", 
+        cascade="all, delete-orphan", 
         order_by="Message.created_at")
 
 class Message(Base):
-    __tablename__ = "messages"
+    __tablename__= "messages"
+
     __table_args__ = (
-        CheckConstraint("role IN ('user', 'assistant')"),
-        Index("idx_messages_chat_created", "chat_id", "created_at"),)
+        CheckConstraint("role in ('user', 'assistant')"),
+        Index("idx_messages_chat_created", "chat_id" ,"created_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    chat_id: Mapped[int] = mapped_column(
-        ForeignKey("chats.id", ondelete="CASCADE"))
-    
-    role: Mapped[str] = mapped_column(String(20))
+    chat_id: Mapped[int] = mapped_column(ForeignKey("chats.id", ondelete="CASCADE"))
+    role:Mapped[str] = mapped_column(String(20))
     content: Mapped[str] = mapped_column(Text)
     model_id: Mapped[str | None] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utc_now)
-
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     chat: Mapped["Chat"] = relationship(back_populates="messages")
-
 
 if settings.database_url.startswith("sqlite:///"):
     Path(settings.database_url.removeprefix("sqlite:///")).parent.mkdir(
-        parents=True, exist_ok=True)
-
+        parents=True, exist_ok=True
+    )
 
 engine = create_engine(settings.database_url)
 

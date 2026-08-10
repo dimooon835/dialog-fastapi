@@ -1,18 +1,16 @@
-const API_URL = "http://localhost:8000";
+const API_URL = 'http://localhost:8000';
 
-async function api(path, options={}, redirectOnUnathorization = true) {
+async function api(path, options={}, redirectOnUnathorization = true){
     const headers = new Headers(options.headers || {});
-    if (options.body) headers.set("Content-Type", "application/json");
-
+    if(options.body) headers.set("Content-Type", "application/json");
     const response = await fetch(`${API_URL}${path}`, {
         ...options,
-        headers,
-        credentials: "include"
+        headers, 
+        credentials:"include"
     });
-    
     if (response.status === 401 && redirectOnUnathorization) {
         window.location.assign("/login.html")
-        throw new Error("Требуется вход")
+        throw new Error ("Требуется вход")
     }
 
     if (response.status === 204) return null;
