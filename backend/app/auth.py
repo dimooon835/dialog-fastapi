@@ -20,7 +20,7 @@ from pydantic import (
     field_validator
 )
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 import jwt
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -37,7 +37,7 @@ JWT_ISSUER = "dialog-api"
 JWT_AUDIENCE = "dialog-web"
 
 def create_token(user_id: int) -> str:
-    now = datetime.now()
+    now = datetime.now(UTC)
     return jwt.encode(
         {
             "sub": str(user_id),
@@ -55,7 +55,7 @@ def read_token(token: str) -> int | None:
         payload = jwt.decode(
             token,
             settings.jwt_secret_key,
-            algorithm=["HS256"],
+            algorithms=["HS256"],
             issuer = JWT_ISSUER,
             audience=JWT_AUDIENCE
         )
@@ -75,7 +75,7 @@ def set_auth_cookie(response: Response, token: str) -> None:
         path="/"
     )
 
-def get_current_user(request: Request, db: DbSession, credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(HTTPBearer)]):
+def get_current_user(request: Request, db: DbSession, credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]):
     token = (credentials.credentials if credentials else request.cookies.get("dialog_access_token"))
 
     user_id = read_token(token) if token else None

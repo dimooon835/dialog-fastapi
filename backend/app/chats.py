@@ -59,6 +59,8 @@ class SendMessageRequest(BaseModel):
         if not value:
             raise ValueError( "сообщение не может быть пустым")
 
+        return value
+
 class SendMessageResponse(BaseModel):
     chat: ChatResponse
     assistant_message: MessageResponse
@@ -88,9 +90,9 @@ async def list_models() -> list[dict[str,str]]:
             detail=str(exc)
         )
 @router.get("/chats", response_model=list[ChatResponse])
-async def list_chats(user: CurrentUser, db: DbSession):
+def list_chats(user: CurrentUser, db: DbSession):
     return list(
-        db.scalar(
+        db.scalars(
             select(Chat).where(Chat.user_id == user.id).order_by(Chat.updated_at.desc())
         )
     )

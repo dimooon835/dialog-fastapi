@@ -117,7 +117,7 @@ async function loadChat(chatId) {
 
 function createMessageElement(message) {
     const isUser = message.role === "user";
-    const article = document.createAttribute("article");
+    const article = document.createElement("article");
     article.className = isUser
         ? "flex items-center justify-end"
         : "flex items-start gap-3"
@@ -135,7 +135,7 @@ function createMessageElement(message) {
 async function renderMessages(message) {
     elements.messages.replaceChildren(...messages.map(createMessageElement))
 
-    scrollToBottom()
+    // scrollToBottom()
 }
 
 function startNewChat(){
@@ -190,9 +190,10 @@ async function sendMessage(content){
         elements.messages.appendChild(
             createMessageElement({role: "user", content})
         );
-        scrollToBottom()
+        // scrollToBottom()
 
         const result = await api(`/api/chats/${state.currentChatId}/messages`, {
+            method: "POST",
             body: JSON.stringify({
                 content,
                 model_id: elements.modelSelect.value
@@ -204,7 +205,7 @@ async function sendMessage(content){
         );
         elements.chatTitle.textContent = result.chat.title;
         await refreshChats();
-        scrollToBottom();
+        // scrollToBottom();
     }
 
     catch(e){
